@@ -1,0 +1,28 @@
+{
+  "nav": {
+    "discover": "Discover",
+    "creators": "Creators",
+    "features": "Features",
+    "login": "Log In",
+    "signup": "Sign Up"
+  },
+  "home": {
+    "title": "Discover Tribes",
+    "subtitle": "Explore curated experiences near you."
+  },
+  "footer": {
+    "company": "Company",
+    "about": "About",
+    "forCreators": "For Creators",
+    "contact": "Contact Us",
+    "legal": "Legal",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "tagline": "Discover and share unique local experiences.",
+    "copyright": "© {{year}} TasteTribe. All rights reserved."
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Manage your account, API keys, and preferences."
+  }
+}
