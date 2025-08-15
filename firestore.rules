@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isModerator() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'moderator';
+    }
+
+    // USERS: Public profiles, but only owners can write.
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if isOwner(userId) && request.resource.data.role == 'user'; // Users can't assign themselves roles
+      allow update: if isOwner(userId);
+      allow delete: if false; // Users should be disabled, not deleted
+    }
+
+    // TRIBES: Publicly readable, but only owners can write.
+    match /tribes/{tribeId} {
+      allow read: if resource.data.status == 'published';
+      allow create: if isSignedIn();
+      allow update, delete: if isOwner(resource.data.ownerId) || isModerator();
+    }
+
+    // POSTS: Readable if the tribe is public. Only tribe owner can write.
+    match /posts/{postId} {
+      // Allow read if user has access to the parent tribe
+      allow read: if get(/databases/$(database)/documents/tribes/$(resource.data.tribeId)).data.status == 'published';
+      // More complex rule for paid tribes:
+      // allow read: if get(/databases/$(database)/documents/tribes/$(resource.data.tribeId)).data.priceType == 'free' || exists(/databases/$(database)/documents/memberships/$(request.auth.uid)_$(resource.data.tribeId));
+
+      allow create, update, delete: if isOwner(get(/databases/$(database)/documents/tribes/$(resource.data.tribeId)).data.ownerId) || isModerator();
+    }
+
+    // FOLLOWS: Users can only follow/unfollow for themselves.
+    match /follows/{followId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isOwner(request.resource.data.followerId);
+      allow delete: if isSignedIn() && isOwner(resource.data.followerId);
+    }
+
+    // MEMBERSHIPS: Created via Stripe, so writes from client are limited.
+    // This assumes a trusted server/function would create/update memberships.
+    // For a client-only model, this would need to be re-evaluated, perhaps allowing users to create a 'pending' membership.
+    match /memberships/{membershipId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create, update, delete: if false; // Should be handled by a secure backend process
+    }
+
+    // REFERRALS: Write-once for the new user.
+    match /referrals/{referralId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isOwner(request.resource.data.referredUserId);
+      allow update, delete: if false;
+    }
+
+    // REPORTS: Users can create reports, moderators can update them.
+    match /reports/{reportId} {
+      allow create: if isSignedIn() && isOwner(request.resource.data.reporterId);
+      allow read, update: if isModerator();
+      allow delete: if false;
+    }
+
+    // Default deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
